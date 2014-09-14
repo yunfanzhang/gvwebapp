@@ -43,6 +43,7 @@ class AbstractDao(object):
 
 class VideoSummaryDao(AbstractDao):
     _table = 'Video'
+    _atable = 'Uploader'
 
     def __init__(self):
         super(VideoSummaryDao, self).__init__()
@@ -72,6 +73,16 @@ class VideoSummaryDao(AbstractDao):
             for k,v in d.items():
                 item[VideoSummary[k]] = v
             res.append(item)
+            # update uploader_id to uplaoder_name
+            uploader_id = d['uploader_id']
+            qs = "select uploader_name "
+            qs += " from " + self._atable
+            qs += " where uploader_id='" + str(uploader_id) + "'"
+        
+            print qs
+            data2 = self._db.get(qs)
+            item[VideoSummary['uploader_id']] = data2['uploader_name']
+
         
         return res
 
