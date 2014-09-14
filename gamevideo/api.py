@@ -22,6 +22,10 @@ import json
 import tornado
 import tornado.web
 import tornado.options
+from tornado import gen
+from tornado.httpclient import AsyncHTTPClient
+from BeautifulSoup import BeautifulSoup
+
 
 # project
 from dao import VideoSummaryDao, VideoDao, GameSummaryDao, GameDao, VideoSearchDao
@@ -103,11 +107,24 @@ class VideoCollectionHandler(BaseHandler):
 
 class VideoHandler(BaseHandler):
     vdao = VideoDao()
-
+    
+    @gen.coroutine
     def get(self, video_id):
         video = self.vdao.get(video_id)
         
-        # TODO: use flvproxy to update playPage to downloadURL
+        # use flvproxy to update playPage to downloadURL, and grasp duration
+        play_url = video['playInfo']
+        http_client = AsyncHTTPClient()
+        response = yield http_client.fetch("http://flv.wandoujia.com" +
+                                           "/hack/flv?format=normal&url=" + 
+                                           play_url)
+        dom = BeautifulSoup(response.body)
+        print "videoId: %s; duration: %s; playUrl: %s." % (
+            video['videoId'],
+            dom.duration.text,
+            dom.v.u.text)
+        video['playInfo'] = [dom.v.u.text]
+        video['duration'] = float(dom.duration.text)
         
         self.write(json.dumps(video))
         return
@@ -202,9 +219,15 @@ class GameCollectionHandler(BaseHandler):
         game_all_counts = self.gs_dao.get_all_count()
         game_summaries = self.gs_dao.get_all(start, limit)
         
+        # this is a fake for give videoType
+        new_game_summaries = list()
+        for gs in game_summaries:
+            gs['videoType'] = u'动作'
+            new_game_summaries.append(gs)
+
         result = {
             'totalCount': game_all_counts,
-            'items': game_summaries,
+            'items': new_game_summaries,
         }
 
         self.write(json.dumps(result))

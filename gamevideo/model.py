@@ -20,6 +20,7 @@ VideoSummary = {'video_id' : 'videoId',
                 'good' : 'likeCount',
                 'duration' : 'duration',
                 'play' : 'playedCount',
+                'uploader_id' : 'authorName',
 }
 
 
