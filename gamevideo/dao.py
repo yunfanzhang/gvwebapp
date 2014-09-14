@@ -30,6 +30,7 @@ def build_query(mapping_dict, exp=list()):
 
 class AbstractDao(object):
     _db = None
+    _atable = 'Uploader'
 
     def __init__(self):
         if AbstractDao._db == None:
@@ -40,10 +41,18 @@ class AbstractDao(object):
                 DB_PASSWORD
             )
 
+    def get_name_from_uid(self, uid):
+        qs = "select uploader_name "
+        qs += " from " + self._atable
+        qs += " where uploader_id='" + str(uid) + "'"
+        
+        print qs
+        data2 = self._db.get(qs)
+        return data2['uploader_name']
+
 
 class VideoSummaryDao(AbstractDao):
     _table = 'Video'
-    _atable = 'Uploader'
 
     def __init__(self):
         super(VideoSummaryDao, self).__init__()
@@ -74,22 +83,13 @@ class VideoSummaryDao(AbstractDao):
                 item[VideoSummary[k]] = v
             res.append(item)
             # update uploader_id to uplaoder_name
-            uploader_id = d['uploader_id']
-            qs = "select uploader_name "
-            qs += " from " + self._atable
-            qs += " where uploader_id='" + str(uploader_id) + "'"
-        
-            print qs
-            data2 = self._db.get(qs)
-            item[VideoSummary['uploader_id']] = data2['uploader_name']
-
+            item[VideoSummary['uploader_id']] = self.get_name_from_uid(d['uploader_id'])
         
         return res
 
 
 class VideoDao(AbstractDao):
     _vtable = 'Video'
-    _atable = 'Uploader'
 
     def __init__(self):
         super(VideoDao, self).__init__()
@@ -107,14 +107,7 @@ class VideoDao(AbstractDao):
             res[Video[k]] = v
 
         # update uploader_id to uplaoder_name
-        uploader_id = data['uploader_id']
-        qs = "select uploader_name "
-        qs += " from " + self._atable
-        qs += " where uploader_id='" + str(uploader_id) + "'"
-        
-        print qs
-        data2 = self._db.get(qs)
-        res[Video['uploader_id']] = data2['uploader_name']
+        res[Video['uploader_id']] = self.get_name_from_uid(data['uploader_id'])
 
         return res
         
@@ -223,6 +216,8 @@ class GameDao(AbstractDao):
             for k,v in d.items():
                 item[VideoSummary[k]] = v
             res.append(item)
+            # update uploader_id to uplaoder_name
+            item[VideoSummary['uploader_id']] = self.get_name_from_uid(d['uploader_id'])
         
         return res
 
@@ -263,5 +258,7 @@ class VideoSearchDao(AbstractDao):
             for k,v in d.items():
                 item[VideoSummary[k]] = v
             res.append(item)
+            # update uploader_id to uplaoder_name
+            item[VideoSummary['uploader_id']] = self.get_name_from_uid(d['uploader_id'])
         
         return res
