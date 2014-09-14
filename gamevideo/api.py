@@ -119,13 +119,24 @@ class VideoHandler(BaseHandler):
                                            "/hack/flv?format=normal&url=" + 
                                            play_url)
         dom = BeautifulSoup(response.body)
-        print "videoId: %s; duration: %s; playUrl: %s." % (
-            video['videoId'],
-            dom.duration.text,
-            dom.v.u.text)
-        video['playInfo'] = [dom.v.u.text]
-        video['duration'] = float(dom.duration.text)
-        
+        if dom.duration and dom.v:
+            print "videoId: %s; duration: %s; playUrl: %s." % (
+                video['videoId'],
+                dom.duration.text,
+                dom.v.u.text)
+            video['playInfo'] = {
+                'segmentCount': 1,
+                'items' : [dom.v.u.text]
+                }
+            video['duration'] = float(dom.duration.text)
+        else:
+            video['playInfo'] = {
+                'segmentCount': 0,
+                'items': list()
+            }
+        # always return playUrl
+        video['playInfo']['playURL'] = play_url
+
         self.write(json.dumps(video))
         return
 
