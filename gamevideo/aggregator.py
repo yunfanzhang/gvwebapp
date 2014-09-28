@@ -9,17 +9,69 @@ Transfer the crawler data to online db
 Lisense under GPLv3.
 """
 # system
+import time
 
 # package
+import requests
 import torndb
+from BeautifulSoup import BeautifulSoup
 
 # project
+from config import *
 
-cdb = torndb.Connection("127.0.0.1:3306", "GameVideos", "root")
-odb = torndb.Connection("127.0.0.1:3306", "gamevideo", "root")
+cdb = torndb.Connection(DB_HOST + ":" + str(DB_PORT),
+                        DB_NAME,
+                        DB_USER,
+                        DB_PASSWORD)
 
-def aggregate_video():
-    pass
+def aggregate_video(vid):
+    qs = "select * from Video where video_id=" + str(vid)
+    data = cdb.get(qs)
+    
+    print data
+    play_url = data['href']
+    r = requests.get("http://flv.wandoujia.com/hack/flv?format=normal&url=" +
+                     play_url)
+    dom = BeautifulSoup(r.text)
+    if dom.duration and dom.v:
+        us = "insert into OnlineVideo ("
+
+        us += ",".join(data.keys())
+        us += ") values ("
+        us += ",".join(['%s' for d in data.values()])
+        us += ")"
+        print us
+
+        cdb.insert(us, *data.values())
 
 if __name__ == "__main__":
-    aggregate_video()
+    # aggregate videos
+    qs = "select video_id from Video"
+    data = cdb.query(qs)
+    rest = 0
+    for d in data:
+        vid = d['video_id']
+        
+        # check where is online
+        # TODO: this is a easy version, we should check whether
+        #       online is still playable
+        qs = "select video_id from OnlineVideo where video_id=" + str(vid)
+        online_data = cdb.get(qs)
+        print online_data
+        if online_data is not None:
+            print "Video %s is already online" % (vid)
+            continue
+
+        b_time = time.time()
+        aggregate_video(d['video_id'])
+        e_time = time.time()
+        interval = e_time - b_time
+        if interval < 1000:
+            print interval
+            time.sleep(1)
+
+        # sleep a little time to less the possible to be recognized
+        rest += 1
+        if rest >= 60:
+            rest = 0
+            time.sleep(10)
