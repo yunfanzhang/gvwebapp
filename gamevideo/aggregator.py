@@ -10,6 +10,7 @@ Lisense under GPLv3.
 """
 # system
 import time
+import cPickle
 
 # package
 import requests
@@ -24,6 +25,8 @@ cdb = torndb.Connection(DB_HOST + ":" + str(DB_PORT),
                         DB_USER,
                         DB_PASSWORD)
 
+pickh = cPickle.load(open('ignoreVideo.pickle', 'rb'))
+
 def aggregate_video(vid):
     qs = "select * from Video where video_id=" + str(vid)
     data = cdb.get(qs)
@@ -33,6 +36,7 @@ def aggregate_video(vid):
     r = requests.get("http://flv.wandoujia.com/hack/flv?format=normal&url=" +
                      play_url)
     dom = BeautifulSoup(r.text)
+    print dom
     if dom.duration and dom.v:
         us = "insert into OnlineVideo ("
 
@@ -43,6 +47,10 @@ def aggregate_video(vid):
         print us
 
         cdb.insert(us, *data.values())
+    else:
+        pickh.add(vid)
+        cPickle.dump(pickh, open('ignoreVideo.pickle', 'wb'))
+        print "Video %s is not parsable " + str(vid)
 
 if __name__ == "__main__":
     # aggregate videos
@@ -52,13 +60,12 @@ if __name__ == "__main__":
     for d in data:
         vid = d['video_id']
         
-        # check where is online
+        # check whether is processed
         # TODO: this is a easy version, we should check whether
         #       online is still playable
         qs = "select video_id from OnlineVideo where video_id=" + str(vid)
         online_data = cdb.get(qs)
-        print online_data
-        if online_data is not None:
+        if vid in pickh or online_data is not None:
             print "Video %s is already online" % (vid)
             continue
 

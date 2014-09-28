@@ -56,6 +56,10 @@ class Application(tornado.web.Application):
 
             # Search API
             (r"^/api/v1/q/videos$", VideoSearchHandler),
+
+            # Auth API
+            (r"^/api/v1/login$", LoginHandler),
+            (r"^/api/v1/logout$", LogoutHandler),
         ]
         
         settings = dict(
@@ -140,6 +144,7 @@ class VideoHandler(BaseHandler):
         self.write(json.dumps(video))
         return
 
+    @authencicated
     def post(self, video_id):
         # TODO: implement like function
         req_data = json.loads(self.request.body)
@@ -171,6 +176,7 @@ class VideoCommentCollectionHandler(BaseHandler):
         self.write(json.dumps(result))
         return
 
+    @authencicated
     def post(self, video_id):
         # TODO: implement comment function
         req_data = json.loads(self.request.body)
@@ -209,6 +215,8 @@ class VideoAppCollectionHandler(BaseHandler):
         return
 
 class VideoAppHandler(BaseHandler):
+
+    @authencicated
     def post(self, video_id, app_id):
         # TODO: implement comment function
         req_data = json.loads(self.request.body)
@@ -302,7 +310,43 @@ class VideoSearchHandler(BaseHandler):
 
         self.write(json.dumps(result))
         return
-        
+
+
+class LoginHandler(BaseHandler):
+    user_dao = UserDao()
+
+    def get(self):
+        pass
+
+    def post(self):
+        auth_type = self.get_argument("authType", "local")
+        if auth_type == "qq":
+            token = self.get_argument("loginToken", "")
+        elif auth_type == "local":
+            user_name = self.get_argument("userName", "")
+            password = self.get_argument("password", "")
+          
+        # TODO: set session on logon
+            
+        if self.get_session('user'):
+            self.write(json.dumps(self.get_session('user')))
+            return
+            
+         self.write(json.dumps({'status': False}))
+         return
+
+
+ class LogoutHandler(BaseHandler):
+    user_dao = UserDao()
+    
+    def get(self):
+        pass
+
+    def post(self):
+        self.set_session('user', None)
+        self.write(json.dumps({'status': False}))
+        return
+
 
 if __name__ == "__main__":
     tornado.options.parse_command_line()
