@@ -25,11 +25,13 @@ import tornado.options
 from tornado import gen
 from tornado.httpclient import AsyncHTTPClient
 from BeautifulSoup import BeautifulSoup
-
+import redis
 
 # project
-from dao import VideoSummaryDao, VideoDao, GameSummaryDao, GameDao, VideoSearchDao
-
+from dao import VideoSummaryDao, VideoDao,\
+    GameSummaryDao, GameDao, VideoSearchDao
+from session import RedisSessionStore, Session
+from decorator import authencicated
 
 class Application(tornado.web.Application):
     """
@@ -47,7 +49,8 @@ class Application(tornado.web.Application):
             # Object API
             (r"^/api/v1/videos$", VideoCollectionHandler),
             (r"^/api/v1/videos/(\d+)$", VideoHandler),
-            (r"^/api/v1/videos/(\d+)/comments$", VideoCommentCollectionHandler),
+            (r"^/api/v1/videos/(\d+)/comments$",
+             VideoCommentCollectionHandler),
             (r"^/api/v1/videos/(\d+)/apps$", VideoAppCollectionHandler),
             (r"^/api/v1/videos/(\d+)/apps/(\d+)$", VideoAppHandler),
             (r"^/api/v1/games$", GameCollectionHandler),
@@ -63,22 +66,36 @@ class Application(tornado.web.Application):
         ]
         
         settings = dict(
-            template_path = os.path.join(os.path.dirname(__file__), "template"),
-            static_path = os.path.join(os.path.dirname(__file__), "static"),
-            debug = True,
+            template_path=os.path.join(
+                os.path.dirname(__file__), "template"),
+            static_path=os.path.join(
+                os.path.dirname(__file__), "static"),
+            debug=True,
         )
 
-        #super(Application, self).__init__(self, handlers, **settings)
         tornado.web.Application.__init__(self, handlers, **settings)
-
+        # init redis
+        self.redis = redis.StrictRedis()
+        self.session_store = RedisSessionStore(self.redis)
+        
 
 class BaseHandler(tornado.web.RequestHandler):
-    def get():
+    def prepare(self):
+        self._session = None
+
+    def get(self):
         pass
 
-    def post():
+    def post(self):
         pass
 
+    @property
+    def session(self):
+        if self._session is None:
+            sessionid = self.get_argument('accessToken', None)
+            self._session = Session(self.application.session_store, sessionid)
+        
+        return self._session
 
 class VideoCollectionHandler(BaseHandler):
     vs_dao = VideoSummaryDao()
@@ -288,7 +305,6 @@ class GameVideoCollectionHandler(BaseHandler):
         return
         
 
-
 class VideoSearchHandler(BaseHandler):
     vsearch_dao = VideoSearchDao()
  
@@ -313,7 +329,7 @@ class VideoSearchHandler(BaseHandler):
 
 
 class LoginHandler(BaseHandler):
-    user_dao = UserDao()
+    #user_dao = UserDao()
 
     def get(self):
         pass
@@ -325,26 +341,33 @@ class LoginHandler(BaseHandler):
         elif auth_type == "local":
             user_name = self.get_argument("userName", "")
             password = self.get_argument("password", "")
-          
+       
         # TODO: set session on logon
-            
-        if self.get_session('user'):
-            self.write(json.dumps(self.get_session('user')))
+        session = self.session
+        session['user'] = dict()
+        session['user']['userName'] = 'QQ_' + token
+        session['user']['accessToken'] = self.session.sessionid
+        
+        
+        if 'user' in session:
+            print session['user']
+            self.write(json.dumps(session['user']))
             return
             
-         self.write(json.dumps({'status': False}))
-         return
+        self.write(json.dumps({'status': False}))
+        return
 
 
- class LogoutHandler(BaseHandler):
-    user_dao = UserDao()
+class LogoutHandler(BaseHandler):
+    #user_dao = UserDao()
     
     def get(self):
         pass
 
     def post(self):
-        self.set_session('user', None)
-        self.write(json.dumps({'status': False}))
+        session = self.session
+        session.clear()
+        self.write(json.dumps({'status': True}))
         return
 
 
