@@ -350,7 +350,6 @@ class LoginHandler(BaseHandler):
         
         
         if 'user' in session:
-            print session['user']
             self.write(json.dumps(session['user']))
             return
             

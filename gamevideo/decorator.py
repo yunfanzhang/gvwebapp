@@ -19,6 +19,7 @@ def authencicated(fn):
     def decorator(self, *args, **kwargs):
         if 'user' not in self.session:
             self.write(json.dumps({'status': False}))
+            return
         fn(self, *args, **kwargs)
         
     return decorator
